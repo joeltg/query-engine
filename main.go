@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
-	"reflect"
 	"strings"
-	"time"
 
 	"encoding/json"
 
@@ -164,8 +162,6 @@ func handleQuery(shell *ipfs.Shell, msg ipfs.PubSubRecord, store *cayley.Handle)
 
 	var query Query
 	node := expanded[0].(map[string]interface{})
-	fmt.Println("node", node)
-	fmt.Println("type", reflect.TypeOf(node))
 	rawFilter, hasFilter := node["http://underlay.mit.edu/query/filter"]
 	rawValues, hasValues := node["http://underlay.mit.edu/query/values"]
 	if !hasFilter || !hasValues {
@@ -313,9 +309,6 @@ func main() {
 		go awaitQueryResponse(queryResponseSubscription)
 	}
 
-	// Do the thing
-	go test(shell, store)
-
 	// Wait forever
 	select {}
 }
@@ -333,29 +326,4 @@ func awaitQueryResponse(subscription *ipfs.PubSubSubscription) {
 
 func handleQueryResponse(msg ipfs.PubSubRecord) {
 	fmt.Println("Got response:", string(msg.Data()))
-}
-
-func test(shell *ipfs.Shell, store *cayley.Handle) {
-	// doc := `{"@context":{"sec":"http://purl.org/security#","xsd":"http://www.w3.org/2001/XMLSchema#","rdf":"http://www.w3.org/1999/02/22-rdf-syntax-ns#","dc":"http://purl.org/dc/terms/","sec:signer":{"@type":"@id"},"dc:created":{"@type":"xsd:dateTime"}},"@id":"http://example.org/sig1","@type":["rdf:Graph","sec:SignedGraph"],"dc:created":"2011-09-23T20:21:34Z","sec:signer":"http://payswarm.example.com/i/john/keys/5","sec:signatureValue":"OGQzNGVkMzVm4NTIyZTkZDYMmMzQzNmExMgoYzI43Q3ODIyOWM32NjI=","@graph":{"@id":"http://example.org/fact1","dc:title":"Hello World!"}}`
-	doc2 := `{"@context":{"name":"http://rdf.data-vocabulary.org/#name","ingredient":"http://rdf.data-vocabulary.org/#ingredients","yield":"http://rdf.data-vocabulary.org/#yield","instructions":"http://rdf.data-vocabulary.org/#instructions","step":{"@id":"http://rdf.data-vocabulary.org/#step","@type":"xsd:integer"},"description":"http://rdf.data-vocabulary.org/#description","xsd":"http://www.w3.org/2001/XMLSchema#"},"name":"Mojito","ingredient":["12 fresh mint leaves","1/2 lime, juiced with pulp","1 tablespoons white sugar","1 cup ice cubes","2 fluid ounces white rum","1/2 cup club soda"],"yield":"1 cocktail","instructions":[{"step":1,"description":"Crush lime juice, mint and sugar together in glass."},{"step":2,"description":"Fill glass to top with ice cubes."},{"step":3,"description":"Pour white rum over ice."},{"step":4,"description":"Fill the rest of glass with club soda, stir."},{"step":5,"description":"Garnish with a lime wedge."}]}`
-	c, err := shell.DagPut(doc2, "json", "cbor")
-	if err != nil {
-		log.Fatalln("error:", err)
-		return
-	}
-	fmt.Println("c:", c)
-
-	assertionTopic := "http://underlay.mit.edu/assertion"
-	err = shell.PubSubPublish(assertionTopic, c)
-	if err != nil {
-		log.Fatalln("publish assertion error:", err)
-	}
-	time.Sleep(2 * time.Second)
-	fmt.Println("wow look at this")
-	// q := `{"context":null,"filter":[{"path":["http://rdf.data-vocabulary.org/#name"],"value":"Mojito"}],"path":[["http://rdf.data-vocabulary.org/#yield"]]}`
-	q := `{"@context":{"rdf":"http://rdf.data-vocabulary.org/#","ul":"http://underlay.mit.edu/query/","ul:path":{"@type":"@id"}},"ul:filter":[{"ul:path":["rdf:name"],"ul:value":"Mojito"}],"ul:values":[{"ul:path":["rdf:yield"]}]}`
-	err = shell.PubSubPublish("http://underlay.mit.edu/query", q)
-	if err != nil {
-		log.Fatalln("publish query error:", err)
-	}
 }
